@@ -1,0 +1,30 @@
+# Strands Agent SDK
+strands-agents>=1.0.0
+
+# AWS Bedrock
+boto3>=1.34.0
+botocore>=1.34.0
+
+# Vector Store
+faiss-cpu>=1.7.4
+numpy>=1.24.0
+
+# FastAPI
+fastapi>=0.109.0
+uvicorn>=0.27.0
+pydantic>=2.0.0
+
+# Environment
+python-dotenv>=1.0.0
+
+# Data Processing
+pandas>=2.0.0
+
+# Document Processing
+pdfplumber>=0.10.0
+PyMuPDF>=1.23.0
+python-docx>=1.1.0
+
+# Utilities
+aiofiles>=23.0.0
+
