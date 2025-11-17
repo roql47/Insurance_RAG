@@ -21,7 +21,7 @@ class InsuranceAnswerAgent:
         self.aws_region = os.getenv("AWS_REGION", "us-east-1")
         self.model_id = os.getenv(
             "BEDROCK_MODEL_ID",
-            "anthropic.claude-sonnet-4-5-20250929-v1:0"  # Claude 4.5 Sonnet - 최신 모델
+            "anthropic.claude-3-sonnet-20240229-v1:0"  # Claude 3 Sonnet (검증된 모델)
         )
         
         # Bedrock Runtime 클라이언트 생성
@@ -374,7 +374,7 @@ def answer_insurance_query(
         vector_weight=0.7,
         bm25_weight=0.3,
         use_rrf=False,
-        use_reranker=True  # 관련성 높은 문서만 선별
+        use_reranker=False  # Render 배포 환경에서 Reranker 비활성화
     )
     
     if material_code or procedure_code:

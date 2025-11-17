@@ -66,7 +66,8 @@ class CohereReranker:
             body = json.dumps({
                 "query": query,
                 "documents": doc_texts,
-                "top_n": min(top_k, len(documents))
+                "top_n": min(top_k, len(documents)),
+                "return_documents": False
             })
             
             response = self.bedrock_runtime.invoke_model(
