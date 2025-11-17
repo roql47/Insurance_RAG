@@ -243,8 +243,7 @@ class InsuranceAnswerAgent:
                 "max_tokens": max_tokens,
                 "system": self.system_prompt,
                 "messages": messages,
-                "temperature": 0.7,  # 더 유연한 추론을 위한 설정
-                "top_p": 0.9
+                "temperature": 0.7  # 더 유연한 추론을 위한 설정
             })
             
             response = self.bedrock_runtime.invoke_model(
