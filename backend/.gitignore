@@ -17,7 +17,7 @@ dist/
 # Data files
 data/raw/*.json
 data/processed/*.json
-data/vector_store/*
+# data/vector_store/*  # Render 배포를 위해 벡터 스토어 파일 포함
 
 # IDE
 .vscode/
