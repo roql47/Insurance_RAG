@@ -34,16 +34,23 @@ class QueryRequest(BaseModel):
         None, 
         description="이전 대화 내역 (선택사항)"
     )
+    excluded_sources: Optional[List[str]] = Field(
+        None,
+        description="제외할 문서 텍스트 목록 (재검색 시 노이즈 문서 제거용)"
+    )
 
 
 class Source(BaseModel):
     """참고 문서 모델"""
     type: str
+    filename: Optional[str] = None
+    pdf_title: Optional[str] = None
     재료코드: Optional[str] = None
     재료명: Optional[str] = None
     시술코드: Optional[str] = None
     시술명: Optional[str] = None
     score: float
+    text: str  # 제외 기능을 위한 문서 텍스트
 
 
 class QueryResponse(BaseModel):
@@ -84,7 +91,8 @@ async def query_insurance_criteria(request: QueryRequest):
             material_code=request.material_code,
             procedure_code=request.procedure_code,
             question=request.question,
-            conversation_history=conversation_history
+            conversation_history=conversation_history,
+            excluded_sources=request.excluded_sources
         )
         
         return QueryResponse(**result)

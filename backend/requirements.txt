@@ -1,5 +1,7 @@
-# Strands Agent SDK
-strands-agents>=1.0.0
+# LangChain
+langchain>=0.1.0
+langchain-aws>=0.1.0
+langchain-community>=0.0.20
 
 # AWS Bedrock
 boto3>=1.34.0
@@ -8,6 +10,9 @@ botocore>=1.34.0
 # Vector Store
 faiss-cpu>=1.7.4
 numpy>=1.24.0
+
+# Keyword Search (BM25)
+rank-bm25>=0.2.2
 
 # FastAPI
 fastapi>=0.109.0
@@ -27,4 +32,7 @@ python-docx>=1.1.0
 
 # Utilities
 aiofiles>=23.0.0
+
+# Text Processing (for semantic chunking)
+nltk>=3.8.0
 

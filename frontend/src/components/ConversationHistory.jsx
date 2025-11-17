@@ -1,10 +1,18 @@
 import SourcesList from './SourcesList'
 import { parseAnswer } from '../utils/parseAnswer'
 
-const ConversationHistory = ({ conversations, onClearHistory }) => {
+const ConversationHistory = ({ 
+  conversations, 
+  onClearHistory, 
+  excludedSources = [], 
+  onExcludeSource, 
+  onRequery 
+}) => {
   if (!conversations || conversations.length === 0) {
     return null
   }
+
+  const isLastConversation = (index) => index === conversations.length - 1
 
   return (
     <div className="space-y-4">
@@ -113,7 +121,12 @@ const ConversationHistory = ({ conversations, onClearHistory }) => {
                 {/* 참고 문서 */}
                 {conversation.sources && conversation.sources.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
-                    <SourcesList sources={conversation.sources} />
+                    <SourcesList 
+                      sources={conversation.sources}
+                      excludedSources={isLastConversation(index) ? excludedSources : []}
+                      onExclude={isLastConversation(index) ? onExcludeSource : null}
+                      onRequery={isLastConversation(index) ? onRequery : null}
+                    />
                   </div>
                 )}
               </div>

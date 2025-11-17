@@ -39,9 +39,11 @@ Insurance_RAG/
 
 ## 🚀 주요 기능
 
+- **🦜🔗 LangChain RAG**: 최신 LangChain 프레임워크로 구현된 RAG 시스템 (NEW!)
 - **AWS Bedrock + Claude 4.5 Haiku**: 최신 AI 모델을 통한 정확한 판단
 - **AWS Titan Embeddings V2**: 1024차원 벡터로 의미 기반 검색
-- **FAISS 벡터 검색**: 빠르고 효율적인 유사도 검색
+- **하이브리드 검색**: FAISS 벡터 검색 (70%) + BM25 키워드 검색 (30%)
+- **대화 기록 관리**: ConversationBufferMemory로 이전 대화 맥락 유지
 - **FastAPI**: 고성능 REST API
 - **React + Vite + Tailwind CSS**: 모던하고 반응형 웹 UI
 

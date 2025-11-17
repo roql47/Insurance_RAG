@@ -1,7 +1,7 @@
 import SourcesList from './SourcesList'
 import { parseAnswer } from '../utils/parseAnswer'
 
-const ResultDisplay = ({ result }) => {
+const ResultDisplay = ({ result, excludedSources = [], onExcludeSource, onRequery }) => {
   if (!result) return null
 
   // 답변 내용 파싱 (테이블과 일반 텍스트 구분)
@@ -87,7 +87,12 @@ const ResultDisplay = ({ result }) => {
         {/* 참고 문서 */}
         {result.sources && result.sources.length > 0 && (
           <div className="mt-6 pt-6 border-t border-gray-200">
-            <SourcesList sources={result.sources} />
+            <SourcesList 
+              sources={result.sources} 
+              excludedSources={excludedSources}
+              onExclude={onExcludeSource}
+              onRequery={onRequery}
+            />
           </div>
         )}
       </div>

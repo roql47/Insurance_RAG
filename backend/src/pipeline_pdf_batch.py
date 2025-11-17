@@ -66,17 +66,20 @@ class BatchPDFPreprocessor:
                 # PDF 로드
                 doc_data = self.loader.load_pdf(pdf_path, method="pdfplumber")
                 
-                # 청크 생성
+                # 청크 생성 (의미 단위 청킹 사용)
                 chunks = self.loader.chunk_document(
                     doc_data,
-                    chunk_size=1000,
-                    overlap=100
+                    chunk_size=1500,  # 목표 청크 크기 증가
+                    overlap=200,       # 오버랩 증가
+                    use_semantic_chunking=True  # 의미 단위 청킹 활성화
                 )
                 
                 # 메타데이터 강화
                 for chunk in chunks:
                     chunk['metadata']['document_title'] = doc_data.get('filename', 'Unknown')
-                    chunk['metadata']['source_type'] = 'pdf'
+                    # 테이블 청크가 아닌 경우만 source_type을 'pdf'로 설정
+                    if 'source_type' not in chunk['metadata']:
+                        chunk['metadata']['source_type'] = 'pdf'
                     chunk['metadata']['source_file'] = os.path.basename(pdf_path)
                 
                 all_chunks.extend(chunks)
@@ -150,7 +153,26 @@ class BatchPDFPreprocessor:
             pickle.dump(metadata_list, f)
         print(f"메타데이터 저장 완료: {metadata_path}")
         
-        print(f"총 {len(valid_chunks)}개 벡터가 인덱스에 추가되었습니다.")
+        # BM25 인덱스 생성 및 저장
+        print("\nBM25 인덱스 생성 중...")
+        try:
+            from tools.bm25_retriever import BM25Retriever
+            
+            # 문서와 메타데이터 추출
+            documents = [item['text'] for item in metadata_list]
+            metadata_only = [item['metadata'] for item in metadata_list]
+            
+            # BM25 인덱스 생성 및 저장
+            bm25_retriever = BM25Retriever()
+            bm25_retriever.build_index(documents, metadata_only)
+            bm25_retriever.save_index()
+            
+            print(f"BM25 인덱스 저장 완료")
+        except Exception as e:
+            print(f"⚠️  BM25 인덱스 생성 실패: {str(e)}")
+            print("   (FAISS 검색은 정상 작동합니다)")
+        
+        print(f"\n총 {len(valid_chunks)}개 벡터가 인덱스에 추가되었습니다.")
 
 
 # 메인 실행

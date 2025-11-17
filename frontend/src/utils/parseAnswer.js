@@ -157,12 +157,22 @@ export function detectFixedWidthTable(input) {
   // 첫 줄을 헤더로 간주
   const firstLine = lines[0].trim()
   
+  // 불릿 리스트로 시작하면 테이블이 아님
+  if (/^[-*•]\s/.test(firstLine)) return null
+  
+  // 대부분의 줄이 불릿 리스트면 테이블이 아님
+  const bulletListLines = lines.filter(line => /^[-*•]\s/.test(line.trim()))
+  if (bulletListLines.length > lines.length * 0.5) return null
+  
   // 마크다운 문법(**, -, :, 등)이 많으면 테이블이 아님
   const markdownSymbolCount = (firstLine.match(/[*:\-_#]/g) || []).length
   if (markdownSymbolCount > 2) return null
   
   // 괄호가 헤더에 있으면 테이블이 아닐 가능성 높음
   if (firstLine.includes('(') || firstLine.includes(')')) return null
+  
+  // 탭 문자가 있는 경우 테이블로 간주하지 않음 (잘못된 포맷일 가능성)
+  if (lines.some(line => line.includes('\t'))) return null
   
   // 여러 방법으로 컬럼 구분 시도
   let potentialHeaders = null

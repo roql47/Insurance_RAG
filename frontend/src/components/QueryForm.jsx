@@ -1,7 +1,13 @@
 import { useState } from 'react'
 import { queryInsuranceCriteria } from '../api/client'
 
-const QueryForm = ({ onSubmit, onLoading, onError, conversationHistory = [] }) => {
+const QueryForm = ({ 
+  onSubmit, 
+  onLoading, 
+  onError, 
+  conversationHistory = [],
+  excludedSources = []
+}) => {
   const [formData, setFormData] = useState({
     materialCode: '',
     procedureCode: '',
@@ -36,9 +42,17 @@ const QueryForm = ({ onSubmit, onLoading, onError, conversationHistory = [] }) =
         formData.materialCode || null,
         formData.procedureCode || null,
         formData.question,
-        apiConversationHistory.length > 0 ? apiConversationHistory : null
+        apiConversationHistory.length > 0 ? apiConversationHistory : null,
+        excludedSources.length > 0 ? excludedSources : null
       )
-      onSubmit(result)
+      
+      // 쿼리 정보도 함께 전달 (재검색용)
+      const queryInfo = {
+        materialCode: formData.materialCode,
+        procedureCode: formData.procedureCode,
+        question: formData.question
+      }
+      onSubmit(result, queryInfo)
       
       // 질문 입력란 초기화 (코드는 유지)
       setFormData(prev => ({

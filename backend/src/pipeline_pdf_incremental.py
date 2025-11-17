@@ -46,28 +46,28 @@ class IncrementalPDFPreprocessor:
         # FAISS 인덱스 로드
         if os.path.exists(index_path):
             self.index = faiss.read_index(index_path)
-            print(f"✅ 기존 FAISS 인덱스 로드: {self.index.ntotal}개 벡터")
+            print(f"[OK] 기존 FAISS 인덱스 로드: {self.index.ntotal}개 벡터")
         else:
-            print("ℹ️  기존 FAISS 인덱스 없음 (새로 생성)")
+            print("[INFO] 기존 FAISS 인덱스 없음 (새로 생성)")
         
         # 메타데이터 로드
         if os.path.exists(metadata_path):
             with open(metadata_path, 'rb') as f:
                 self.metadata = pickle.load(f)
-            print(f"✅ 기존 메타데이터 로드: {len(self.metadata)}개 항목")
+            print(f"[OK] 기존 메타데이터 로드: {len(self.metadata)}개 항목")
         else:
-            print("ℹ️  기존 메타데이터 없음 (새로 생성)")
+            print("[INFO] 기존 메타데이터 없음 (새로 생성)")
         
         # 처리된 파일 목록 로드
         if os.path.exists(self.processed_files_path):
             with open(self.processed_files_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 self.processed_files = set(data.get('files', []))
-            print(f"✅ 처리된 파일 목록 로드: {len(self.processed_files)}개 파일")
+            print(f"[OK] 처리된 파일 목록 로드: {len(self.processed_files)}개 파일")
             for filename in self.processed_files:
                 print(f"   - {filename}")
         else:
-            print("ℹ️  처리된 파일 목록 없음")
+            print("[INFO] 처리된 파일 목록 없음")
     
     def _save_processed_files(self):
         """처리된 파일 목록 저장"""
@@ -95,7 +95,7 @@ class IncrementalPDFPreprocessor:
         all_pdf_files = glob.glob(pdf_pattern)
         
         if not all_pdf_files:
-            print(f"❌ 오류: {pdf_folder}에 PDF 파일이 없습니다.")
+            print(f"[ERROR] 오류: {pdf_folder}에 PDF 파일이 없습니다.")
             return
         
         print(f"\n전체 PDF 파일: {len(all_pdf_files)}개")
@@ -103,7 +103,7 @@ class IncrementalPDFPreprocessor:
         # 새로운 파일만 필터링
         if force_reprocess:
             new_pdf_files = all_pdf_files
-            print("⚠️  강제 재처리 모드: 모든 파일을 처리합니다.")
+            print("[WARNING] 강제 재처리 모드: 모든 파일을 처리합니다.")
         else:
             new_pdf_files = [
                 pdf for pdf in all_pdf_files 
@@ -111,10 +111,10 @@ class IncrementalPDFPreprocessor:
             ]
         
         if not new_pdf_files:
-            print("\n✅ 처리할 새로운 PDF 파일이 없습니다. 모든 파일이 이미 학습되었습니다.")
+            print("\n[OK] 처리할 새로운 PDF 파일이 없습니다. 모든 파일이 이미 학습되었습니다.")
             return
         
-        print(f"\n🆕 새로 처리할 파일: {len(new_pdf_files)}개")
+        print(f"\n[NEW] 새로 처리할 파일: {len(new_pdf_files)}개")
         for i, pdf_file in enumerate(new_pdf_files, 1):
             print(f"  [{i}] {os.path.basename(pdf_file)}")
         print()
@@ -133,18 +133,22 @@ class IncrementalPDFPreprocessor:
                 # PDF 로드
                 doc_data = self.loader.load_pdf(pdf_path, method="pdfplumber")
                 
-                # 청크 생성
+                # 청크 생성 (의미 단위 청킹 사용)
                 chunks = self.loader.chunk_document(
                     doc_data,
-                    chunk_size=1000,
-                    overlap=100
+                    chunk_size=1500,  # 목표 청크 크기 증가
+                    overlap=200,       # 오버랩 증가
+                    use_semantic_chunking=True  # 의미 단위 청킹 활성화
                 )
                 
                 # 메타데이터 강화
                 for chunk in chunks:
-                    chunk['metadata']['document_title'] = doc_data.get('filename', 'Unknown')
-                    chunk['metadata']['source_type'] = 'pdf'
+                    chunk['metadata']['document_title'] = doc_data.get('title', filename)
+                    # 테이블 청크가 아닌 경우만 source_type을 'pdf'로 설정
+                    if 'source_type' not in chunk['metadata']:
+                        chunk['metadata']['source_type'] = 'pdf'
                     chunk['metadata']['source_file'] = filename
+                    chunk['metadata']['pdf_title'] = doc_data.get('title', filename)  # 명시적 제목 필드
                     chunk['metadata']['processed_date'] = datetime.now().isoformat()
                 
                 new_chunks.extend(chunks)
@@ -157,7 +161,7 @@ class IncrementalPDFPreprocessor:
                 continue
         
         if not new_chunks:
-            print("\n❌ 처리된 청크가 없습니다.")
+            print("\n[ERROR] 처리된 청크가 없습니다.")
             return
         
         print(f"\n" + "=" * 60)
@@ -172,7 +176,7 @@ class IncrementalPDFPreprocessor:
         for i, chunk in enumerate(new_chunks):
             chunk['embedding'] = embeddings[i]
         
-        print("✅ 임베딩 생성 완료")
+        print("[OK] 임베딩 생성 완료")
         
         # 기존 인덱스에 추가
         self.add_to_faiss(new_chunks)
@@ -208,7 +212,7 @@ class IncrementalPDFPreprocessor:
         
         # 벡터 추가
         self.index.add(new_embeddings)
-        print(f"✅ {len(valid_chunks)}개 벡터 추가됨 (총 {self.index.ntotal}개)")
+        print(f"[OK] {len(valid_chunks)}개 벡터 추가됨 (총 {self.index.ntotal}개)")
         
         # 메타데이터 추가
         for chunk in valid_chunks:
@@ -222,24 +226,43 @@ class IncrementalPDFPreprocessor:
         self._save_index_and_metadata()
     
     def _save_index_and_metadata(self):
-        """FAISS 인덱스와 메타데이터 저장"""
-        # 인덱스 저장
+        """FAISS 인덱스, 메타데이터, BM25 인덱스 저장"""
+        # FAISS 인덱스 저장
         index_path = os.path.join(self.vector_store_path, "faiss_index.bin")
         faiss.write_index(self.index, index_path)
-        print(f"✅ FAISS 인덱스 저장: {index_path}")
+        print(f"[OK] FAISS 인덱스 저장: {index_path}")
         
         # 메타데이터 저장
         metadata_path = os.path.join(self.vector_store_path, "metadata.pkl")
         with open(metadata_path, 'wb') as f:
             pickle.dump(self.metadata, f)
-        print(f"✅ 메타데이터 저장: {metadata_path}")
+        print(f"[OK] 메타데이터 저장: {metadata_path}")
+        
+        # BM25 인덱스 재생성 및 저장
+        print("BM25 인덱스 업데이트 중...")
+        try:
+            from tools.bm25_retriever import BM25Retriever
+            
+            # 문서와 메타데이터 추출
+            documents = [item['text'] for item in self.metadata]
+            metadata_only = [item['metadata'] for item in self.metadata]
+            
+            # BM25 인덱스 생성 및 저장
+            bm25_retriever = BM25Retriever()
+            bm25_retriever.build_index(documents, metadata_only)
+            bm25_retriever.save_index()
+            
+            print(f"[OK] BM25 인덱스 저장 완료")
+        except Exception as e:
+            print(f"[WARNING] BM25 인덱스 업데이트 실패: {str(e)}")
+            print("   (FAISS 검색은 정상 작동합니다)")
     
     def reset_processed_files(self):
         """처리된 파일 목록 초기화 (전체 재학습용)"""
         if os.path.exists(self.processed_files_path):
             os.remove(self.processed_files_path)
         self.processed_files = set()
-        print("✅ 처리된 파일 목록 초기화됨")
+        print("[OK] 처리된 파일 목록 초기화됨")
     
     def list_processed_files(self):
         """처리된 파일 목록 출력"""
@@ -275,23 +298,22 @@ if __name__ == "__main__":
     
     # 처리된 파일 목록 초기화
     if args.reset:
-        confirm = input("⚠️  처리된 파일 목록을 초기화하시겠습니까? (y/N): ")
+        confirm = input("[WARNING] 처리된 파일 목록을 초기화하시겠습니까? (y/N): ")
         if confirm.lower() == 'y':
             preprocessor.reset_processed_files()
         sys.exit(0)
     
     # PDF 폴더 확인
     if not os.path.exists(args.pdf_folder):
-        print(f"❌ 오류: 폴더를 찾을 수 없습니다: {args.pdf_folder}")
+        print(f"[ERROR] 오류: 폴더를 찾을 수 없습니다: {args.pdf_folder}")
         sys.exit(1)
     
     # 증분 학습 실행
     try:
         preprocessor.process_new_pdfs(args.pdf_folder, force_reprocess=args.force)
-        print("\n✅ 성공! 이제 'python run_server.py'로 API 서버를 시작할 수 있습니다.")
+        print("\n[OK] 성공! 이제 'python run_server.py'로 API 서버를 시작할 수 있습니다.")
     except Exception as e:
-        print(f"\n❌ 오류 발생: {str(e)}")
+        print(f"\n[ERROR] 오류 발생: {str(e)}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
-

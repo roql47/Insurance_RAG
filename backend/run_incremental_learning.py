@@ -81,7 +81,7 @@ if __name__ == "__main__":
     
     # 처리된 파일 목록 초기화
     if args.reset:
-        confirm = input("⚠️  처리된 파일 목록을 초기화하시겠습니까? (y/N): ")
+        confirm = input("[WARNING] 처리된 파일 목록을 초기화하시겠습니까? (y/N): ")
         if confirm.lower() == 'y':
             preprocessor.reset_processed_files()
             print("다음에 실행하면 모든 파일을 다시 학습합니다.")

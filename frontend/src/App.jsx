@@ -3,16 +3,24 @@ import QueryForm from './components/QueryForm'
 import ResultDisplay from './components/ResultDisplay'
 import LoadingSpinner from './components/LoadingSpinner'
 import ConversationHistory from './components/ConversationHistory'
+import { queryInsuranceCriteria } from './api/client'
 
 function App() {
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [conversations, setConversations] = useState([]) // 대화 히스토리
+  const [excludedSources, setExcludedSources] = useState([]) // 제외된 문서 텍스트 목록
+  const [lastQuery, setLastQuery] = useState(null) // 마지막 쿼리 정보 (재검색용)
 
-  const handleQuerySubmit = (queryResult) => {
+  const handleQuerySubmit = (queryResult, queryInfo) => {
     setResult(queryResult)
     setError(null)
+    
+    // 마지막 쿼리 정보 저장 (재검색용)
+    if (queryInfo) {
+      setLastQuery(queryInfo)
+    }
     
     // 대화 히스토리에 추가
     setConversations(prev => [...prev, queryResult])
@@ -31,6 +39,42 @@ function App() {
     setConversations([])
     setResult(null)
     setError(null)
+    setExcludedSources([])
+    setLastQuery(null)
+  }
+
+  const handleExcludeSource = (sourceText) => {
+    setExcludedSources(prev => [...prev, sourceText])
+  }
+
+  const handleRequery = async () => {
+    if (!lastQuery || excludedSources.length === 0) return
+    
+    handleLoading(true)
+    try {
+      // 대화 히스토리를 API 형식으로 변환
+      const apiConversationHistory = conversations.map(conv => [
+        { role: 'user', content: conv.question },
+        { role: 'assistant', content: conv.answer }
+      ]).flat()
+
+      const result = await queryInsuranceCriteria(
+        lastQuery.materialCode || null,
+        lastQuery.procedureCode || null,
+        lastQuery.question,
+        apiConversationHistory.length > 0 ? apiConversationHistory : null,
+        excludedSources
+      )
+      
+      setResult(result)
+      setConversations(prev => [...prev, result])
+      setExcludedSources([]) // 재검색 후 제외 목록 초기화
+      setError(null)
+    } catch (error) {
+      handleError(error.message)
+    } finally {
+      handleLoading(false)
+    }
   }
 
   return (
@@ -59,6 +103,7 @@ function App() {
               onLoading={handleLoading}
               onError={handleError}
               conversationHistory={conversations}
+              excludedSources={excludedSources}
             />
           </div>
         </div>
@@ -88,6 +133,9 @@ function App() {
           <ConversationHistory 
             conversations={conversations}
             onClearHistory={handleClearHistory}
+            excludedSources={excludedSources}
+            onExcludeSource={handleExcludeSource}
+            onRequery={handleRequery}
           />
         )}
 
