@@ -9,8 +9,6 @@ const QueryForm = ({
   excludedSources = []
 }) => {
   const [formData, setFormData] = useState({
-    materialCode: '',
-    procedureCode: '',
     question: '',
   })
 
@@ -39,8 +37,6 @@ const QueryForm = ({
       ]).flat()
 
       const result = await queryInsuranceCriteria(
-        formData.materialCode || null,
-        formData.procedureCode || null,
         formData.question,
         apiConversationHistory.length > 0 ? apiConversationHistory : null,
         excludedSources.length > 0 ? excludedSources : null
@@ -48,17 +44,14 @@ const QueryForm = ({
       
       // 쿼리 정보도 함께 전달 (재검색용)
       const queryInfo = {
-        materialCode: formData.materialCode,
-        procedureCode: formData.procedureCode,
         question: formData.question
       }
       onSubmit(result, queryInfo)
       
-      // 질문 입력란 초기화 (코드는 유지)
-      setFormData(prev => ({
-        ...prev,
+      // 질문 입력란 초기화
+      setFormData({
         question: ''
-      }))
+      })
     } catch (error) {
       onError(error.message)
     } finally {
@@ -84,40 +77,8 @@ const QueryForm = ({
           required
         />
         <p className="mt-1 text-xs text-gray-500">
-          학습된 문서를 기반으로 답변합니다. 재료코드/시술코드는 선택사항입니다.
+          학습된 문서를 기반으로 답변합니다.
         </p>
-      </div>
-
-      {/* 재료코드 입력 (선택사항) */}
-      <div>
-        <label htmlFor="materialCode" className="block text-sm font-medium text-gray-700 mb-1.5">
-          재료코드 <span className="text-gray-400 text-xs">(선택사항)</span>
-        </label>
-        <input
-          type="text"
-          id="materialCode"
-          name="materialCode"
-          value={formData.materialCode}
-          onChange={handleChange}
-          placeholder="예: A12345"
-          className="w-full px-4 py-2.5 border border-gray-300 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors outline-none"
-        />
-      </div>
-
-      {/* 시술코드 입력 (선택사항) */}
-      <div>
-        <label htmlFor="procedureCode" className="block text-sm font-medium text-gray-700 mb-1.5">
-          시술코드 <span className="text-gray-400 text-xs">(선택사항)</span>
-        </label>
-        <input
-          type="text"
-          id="procedureCode"
-          name="procedureCode"
-          value={formData.procedureCode}
-          onChange={handleChange}
-          placeholder="예: N2095"
-          className="w-full px-4 py-2.5 border border-gray-300 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors outline-none"
-        />
       </div>
 
       {/* 제출 버튼 */}

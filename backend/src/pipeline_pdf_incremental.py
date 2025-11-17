@@ -130,8 +130,8 @@ class IncrementalPDFPreprocessor:
             print("-" * 60)
             
             try:
-                # PDF 로드
-                doc_data = self.loader.load_pdf(pdf_path, method="pdfplumber")
+                # PDF 로드 (pdfplumber 실패 시 PyMuPDF로 자동 폴백)
+                doc_data = self.loader.load_pdf_with_fallback(pdf_path)
                 
                 # 청크 생성 (의미 단위 청킹 사용)
                 chunks = self.loader.chunk_document(

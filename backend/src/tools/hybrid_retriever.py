@@ -11,6 +11,7 @@ from tools.faiss_retriever import FAISSRetriever
 from tools.bm25_retriever import BM25Retriever
 from tools.query_expander import get_query_expander
 from tools.reranker import get_reranker
+from tools.bm25_reranker import get_bm25_reranker
 
 # 환경 변수 로드
 load_dotenv()
@@ -306,6 +307,163 @@ class HybridRetriever:
         # 검색 수행
         k = top_k if top_k else 5
         return self.search(query, k, filter_codes if filter_codes else None)
+    
+    def get_all_chunks_by_doc_code(
+        self,
+        doc_code: str,
+        max_chunks: int = 100
+    ) -> List[Dict[str, Any]]:
+        """
+        문서 코드로 해당 문서의 모든 청크 반환
+        
+        Args:
+            doc_code: 문서 코드 (예: "자656", "제2022-264호")
+            max_chunks: 최대 반환 청크 수 (토큰 제한 방지)
+            
+        Returns:
+            해당 문서의 모든 청크 리스트
+        """
+        if not self.faiss_retriever.metadata:
+            print("[WARNING] 메타데이터가 로드되지 않았습니다.")
+            return []
+        
+        print(f"\n[문서 검색] 문서 코드: '{doc_code}'")
+        
+        # 메타데이터에서 doc_code가 일치하는 청크 찾기
+        matching_chunks = []
+        
+        for item in self.faiss_retriever.metadata:
+            metadata = item.get('metadata', {})
+            item_doc_code = metadata.get('doc_code', '')
+            
+            # 문서 코드 매칭
+            if item_doc_code == doc_code:
+                chunk = {
+                    "text": item['text'],
+                    "metadata": metadata,
+                    "score": 1.0,  # 필터링된 결과는 모두 관련성 높음
+                    "rank": len(matching_chunks) + 1
+                }
+                matching_chunks.append(chunk)
+                
+                # 최대 개수 제한
+                if len(matching_chunks) >= max_chunks:
+                    break
+        
+        if matching_chunks:
+            print(f"[OK] {len(matching_chunks)}개 청크 발견")
+        else:
+            print(f"[WARNING] 문서 코드 '{doc_code}'에 해당하는 청크를 찾을 수 없습니다.")
+        
+        return matching_chunks
+    
+    def get_all_chunks_by_pdf_title(
+        self,
+        pdf_title_keyword: str,
+        max_chunks: int = 100
+    ) -> List[Dict[str, Any]]:
+        """
+        PDF 제목 키워드로 해당 문서의 모든 청크 반환
+        
+        Args:
+            pdf_title_keyword: PDF 제목에 포함된 키워드
+            max_chunks: 최대 반환 청크 수
+            
+        Returns:
+            해당 문서의 모든 청크 리스트
+        """
+        if not self.faiss_retriever.metadata:
+            print("[WARNING] 메타데이터가 로드되지 않았습니다.")
+            return []
+        
+        print(f"\n[문서 검색] PDF 제목 키워드: '{pdf_title_keyword}'")
+        
+        # 메타데이터에서 pdf_title이 키워드를 포함하는 청크 찾기
+        matching_chunks = []
+        
+        for item in self.faiss_retriever.metadata:
+            metadata = item.get('metadata', {})
+            pdf_title = metadata.get('pdf_title', '')
+            
+            # PDF 제목에 키워드가 포함되어 있는지 확인
+            if pdf_title_keyword.lower() in pdf_title.lower():
+                chunk = {
+                    "text": item['text'],
+                    "metadata": metadata,
+                    "score": 1.0,
+                    "rank": len(matching_chunks) + 1
+                }
+                matching_chunks.append(chunk)
+                
+                # 최대 개수 제한
+                if len(matching_chunks) >= max_chunks:
+                    break
+        
+        if matching_chunks:
+            print(f"[OK] {len(matching_chunks)}개 청크 발견")
+        else:
+            print(f"[WARNING] 제목에 '{pdf_title_keyword}'가 포함된 문서를 찾을 수 없습니다.")
+        
+        return matching_chunks
+    
+    def search_with_fallback(
+        self,
+        query: str,
+        top_k: int = 5,
+        filter_codes: Dict[str, str] = None,
+        use_local_rerank: bool = True
+    ) -> List[Dict[str, Any]]:
+        """
+        하이브리드 검색 + BM25 리랭크 + Fallback (primary_field 없는 문서 전체 검색)
+        
+        Args:
+            query: 검색 질문
+            top_k: 반환할 결과 수
+            filter_codes: 필터링할 코드
+            use_local_rerank: BM25 로컬 리랭크 사용 여부
+            
+        Returns:
+            검색 결과 리스트
+        """
+        # 1. 일반 하이브리드 검색
+        results = self.search(query, top_k, filter_codes)
+        
+        # 2. 결과가 있는지 확인
+        if not results:
+            print("[INFO] 검색 결과가 없습니다.")
+            return []
+        
+        # 3. primary_field가 없는 문서 감지
+        docs_without_primary = set()
+        
+        for result in results:
+            metadata = result.get('metadata', {})
+            
+            # primary_field가 없고, doc_code가 있는 경우
+            if not metadata.get('primary_field') and metadata.get('doc_code'):
+                doc_code = metadata['doc_code']
+                docs_without_primary.add(doc_code)
+        
+        # 4. primary_field 없는 문서의 전체 청크 추가
+        additional_chunks = []
+        if docs_without_primary:
+            print(f"\n[Fallback] primary_field 없는 문서 {len(docs_without_primary)}개 발견")
+            for doc_code in docs_without_primary:
+                print(f"  → {doc_code} 문서 전체 청크 추가")
+                doc_chunks = self.get_all_chunks_by_doc_code(doc_code, max_chunks=50)
+                additional_chunks.extend(doc_chunks)
+        
+        # 5. 기존 결과와 추가 청크 합치기
+        all_results = results + additional_chunks
+        
+        # 6. BM25 로컬 리랭크 적용
+        if use_local_rerank and len(all_results) > top_k:
+            print(f"\n[Local Rerank] BM25로 {len(all_results)}개 청크 재정렬")
+            local_reranker = get_bm25_reranker()
+            all_results = local_reranker.rerank(query, all_results, top_k=top_k * 2)
+        
+        # 7. 최종 결과 반환
+        return all_results[:top_k * 2]  # top_k의 2배 반환 (충분한 컨텍스트)
 
 
 # 테스트용 메인 함수

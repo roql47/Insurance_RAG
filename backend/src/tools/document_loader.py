@@ -95,6 +95,35 @@ class DocumentLoader:
         
         return structured_data
     
+    def extract_document_code(self, title: str) -> str:
+        """
+        문서 제목에서 문서 코드 추출 (예: 자656, 제2022-264호 등)
+        
+        Args:
+            title: 문서 제목
+            
+        Returns:
+            추출된 문서 코드 (없으면 빈 문자열)
+        """
+        import re
+        
+        # 패턴 1: "자656", "가123" 등 (한글 1자 + 숫자)
+        match = re.search(r'[가-힣]\d+', title)
+        if match:
+            return match.group(0)
+        
+        # 패턴 2: "제2022-264호", "제2024-102호" 등
+        match = re.search(r'제\d{4}-\d+호', title)
+        if match:
+            return match.group(0)
+        
+        # 패턴 3: 괄호 안의 코드 "(제2022-264호)"
+        match = re.search(r'\((제\d{4}-\d+호)\)', title)
+        if match:
+            return match.group(1)
+        
+        return ""
+    
     def extract_pdf_title(self, pdf_path: str) -> str:
         """
         PDF에서 제목 추출
@@ -183,6 +212,11 @@ class DocumentLoader:
             title = self.extract_pdf_title(pdf_path)
             print(f"추출된 제목: {title}")
             
+            # 문서 코드 추출
+            doc_code = self.extract_document_code(title)
+            if doc_code:
+                print(f"문서 코드 추출: {doc_code}")
+            
             # 테이블 추출
             print("\n테이블 데이터 추출 중...")
             table_data = self.extract_tables_from_pdf(pdf_path)
@@ -191,6 +225,7 @@ class DocumentLoader:
                 "filename": os.path.basename(pdf_path),
                 "filepath": pdf_path,
                 "title": title,
+                "doc_code": doc_code,  # 문서 코드 추가
                 "total_pages": len(pages_data),
                 "full_text": full_text.strip(),
                 "pages": pages_data,
@@ -282,6 +317,49 @@ class DocumentLoader:
         else:
             raise ValueError(f"지원하지 않는 메소드: {method}")
     
+    def load_pdf_with_fallback(self, pdf_path: str) -> Dict[str, Any]:
+        """
+        PDF 파일 로드 (pdfplumber 실패 시 PyMuPDF로 자동 폴백)
+        
+        Args:
+            pdf_path: PDF 파일 경로
+            
+        Returns:
+            문서 정보 딕셔너리
+        """
+        if not os.path.exists(pdf_path):
+            raise FileNotFoundError(f"파일을 찾을 수 없습니다: {pdf_path}")
+        
+        # 1. pdfplumber 시도
+        try:
+            print(f"[시도 1] pdfplumber로 텍스트 추출...")
+            doc_data = self.load_pdf_with_pdfplumber(pdf_path)
+            
+            # 텍스트가 제대로 추출되었는지 확인
+            if doc_data.get('full_text') and len(doc_data['full_text']) > 50:
+                print(f"[OK] pdfplumber 성공: {len(doc_data['full_text'])}자 추출")
+                return doc_data
+            else:
+                print(f"[WARNING] pdfplumber로 텍스트가 거의 추출되지 않음 ({len(doc_data.get('full_text', ''))}자)")
+                print(f"[시도 2] PyMuPDF로 재시도...")
+        except Exception as e:
+            print(f"[WARNING] pdfplumber 실패: {str(e)}")
+            print(f"[시도 2] PyMuPDF로 재시도...")
+        
+        # 2. PyMuPDF로 폴백
+        try:
+            doc_data = self.load_pdf_with_pymupdf(pdf_path)
+            if doc_data.get('full_text') and len(doc_data['full_text']) > 50:
+                print(f"[OK] PyMuPDF 성공: {len(doc_data['full_text'])}자 추출")
+                return doc_data
+            else:
+                print(f"[ERROR] PyMuPDF도 텍스트 추출 실패 ({len(doc_data.get('full_text', ''))}자)")
+                print(f"[INFO] 이 PDF는 스캔된 이미지 PDF일 수 있습니다. OCR이 필요합니다.")
+                return doc_data
+        except Exception as e:
+            print(f"[ERROR] PyMuPDF도 실패: {str(e)}")
+            raise
+    
     def create_table_chunks(self, doc_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
         테이블 데이터를 개별 청크로 변환
@@ -291,7 +369,7 @@ class DocumentLoader:
             doc_data: 문서 데이터 (table_data 포함)
             
         Returns:
-            테이블 청크 리스트
+            테이블 청크 리스트 (및 table_has_primary_field 플래그 설정)
         """
         table_data = doc_data.get("table_data", [])
         
@@ -301,6 +379,7 @@ class DocumentLoader:
         print(f"\n  [TABLE] 테이블 청크 생성 중: {len(table_data)}개 행")
         
         table_chunks = []
+        has_primary_field = False  # '제목'이나 '질의' 컬럼이 있는지 플래그
         
         for idx, row_info in enumerate(table_data):
             row_data = row_info.get('row_data', {})
@@ -322,6 +401,8 @@ class DocumentLoader:
                 "filepath": doc_data.get("filepath", ""),
                 "file_type": doc_data.get("file_type", ""),
                 "total_pages": doc_data.get("total_pages", 0),
+                "pdf_title": doc_data.get("title", ""),  # PDF 제목 추가
+                "doc_code": doc_data.get("doc_code", ""),  # 문서 코드 추가
                 "source_type": "table",  # 테이블 출처 표시
                 "page_number": row_info.get('page_number', 0),
                 "table_index": row_info.get('table_index', 0),
@@ -359,6 +440,7 @@ class DocumentLoader:
             if primary_field_standard and primary_value:
                 chunk_metadata['primary_field'] = primary_field_standard  # 표준화된 필드명 저장
                 chunk_metadata['primary_content'] = primary_value
+                has_primary_field = True  # 플래그 설정
                 if idx < 3:  # 처음 3개만 로그 출력
                     print(f"    [자동감지] '{primary_field_standard}' → '{primary_value[:30]}...'")
             
@@ -370,7 +452,14 @@ class DocumentLoader:
                 "metadata": chunk_metadata
             })
         
-        print(f"  [OK] {len(table_chunks)}개 테이블 청크 생성 완료")
+        # 문서 데이터에 플래그 저장
+        doc_data['has_primary_field'] = has_primary_field
+        
+        if has_primary_field:
+            print(f"  [OK] {len(table_chunks)}개 테이블 청크 생성 완료 (primary_field 있음)")
+        else:
+            print(f"  [WARNING] {len(table_chunks)}개 테이블 청크 생성 (primary_field 없음 - 전체 문서 검색 필요)")
+        
         return table_chunks
     
     def chunk_document(
@@ -410,7 +499,9 @@ class DocumentLoader:
                 "filename": doc_data.get("filename", ""),
                 "filepath": doc_data.get("filepath", ""),
                 "file_type": doc_data.get("file_type", ""),
-                "total_pages": doc_data.get("total_pages", 0)
+                "total_pages": doc_data.get("total_pages", 0),
+                "pdf_title": doc_data.get("title", ""),
+                "doc_code": doc_data.get("doc_code", "")
             }
             
             # Semantic chunking 실행

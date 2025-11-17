@@ -39,8 +39,6 @@ apiClient.interceptors.response.use(
  * 보험 인정기준 질의 API
  */
 export const queryInsuranceCriteria = async (
-  materialCode, 
-  procedureCode, 
   question, 
   conversationHistory = null,
   excludedSources = null
@@ -48,14 +46,6 @@ export const queryInsuranceCriteria = async (
   try {
     const requestBody = {
       question: question
-    }
-    
-    // 코드가 있을 때만 추가
-    if (materialCode) {
-      requestBody.material_code = materialCode
-    }
-    if (procedureCode) {
-      requestBody.procedure_code = procedureCode
     }
     
     // 대화 히스토리가 있을 때만 추가

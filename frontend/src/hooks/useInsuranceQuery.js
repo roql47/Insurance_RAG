@@ -9,13 +9,13 @@ export const useInsuranceQuery = () => {
   const [error, setError] = useState(null)
   const [result, setResult] = useState(null)
 
-  const submitQuery = async (materialCode, procedureCode, question, conversationHistory = null) => {
+  const submitQuery = async (question, conversationHistory = null) => {
     setLoading(true)
     setError(null)
     setResult(null)
 
     try {
-      const data = await queryInsuranceCriteria(materialCode, procedureCode, question, conversationHistory)
+      const data = await queryInsuranceCriteria(question, conversationHistory)
       setResult(data)
       return data
     } catch (err) {

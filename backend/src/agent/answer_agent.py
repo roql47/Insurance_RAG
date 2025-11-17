@@ -21,7 +21,7 @@ class InsuranceAnswerAgent:
         self.aws_region = os.getenv("AWS_REGION", "us-east-1")
         self.model_id = os.getenv(
             "BEDROCK_MODEL_ID",
-            "anthropic.claude-3-sonnet-20240229-v1:0"  # Claude 3 Sonnet (검증된 모델)
+            "anthropic.claude-haiku-4-5-20251001-v1:0"  
         )
         
         # Bedrock Runtime 클라이언트 생성
@@ -188,7 +188,7 @@ class InsuranceAnswerAgent:
         max_tokens: int = 4000
     ) -> str:
         """
-        Claude 4.5 Sonnet 모델 호출 (최신 모델, 뛰어난 추론 능력)
+        Claude 4.5 Sonnet 모델 호출
         
         Args:
             user_message: 사용자 질문
@@ -369,28 +369,31 @@ def answer_insurance_query(
     from tools.hybrid_retriever import HybridRetriever
     
     # 1. 관련 문서 검색 (하이브리드: 벡터 70% + BM25 30%)
-    # Reranker로 관련성 높은 문서만 선별
+    # BM25 로컬 리랭크 + Fallback (primary_field 없는 문서 전체 검색)
     retriever = HybridRetriever(
         vector_weight=0.7,
         bm25_weight=0.3,
         use_rrf=False,
-        use_reranker=False  # Render 배포 환경에서 Reranker 비활성화
+        use_reranker=False  # Cohere Reranker 비활성화 (로컬 BM25 리랭크 사용)
     )
     
-    if material_code or procedure_code:
-        # 코드가 있으면 필터링해서 검색
-        retrieved_docs = retriever.search_by_codes(
-            material_code=material_code,
-            procedure_code=procedure_code,
-            query=question,
-            top_k=10  # 많은 후보 검색 → Reranker가 관련성 높은 문서만 선별
-        )
-    else:
-        # 코드가 없으면 전체 검색
-        retrieved_docs = retriever.search(
-            query=question,
-            top_k=10  # 많은 후보 검색 → Reranker가 관련성 높은 문서만 선별
-        )
+    # 필터 코드 구성
+    filter_codes = {}
+    if material_code:
+        filter_codes["재료코드"] = material_code
+    if procedure_code:
+        filter_codes["시술코드"] = procedure_code
+    
+    # search_with_fallback 사용:
+    # - 기본 하이브리드 검색
+    # - primary_field 없는 문서 감지 → 해당 문서 전체 청크 추가
+    # - BM25 로컬 리랭크로 재정렬
+    retrieved_docs = retriever.search_with_fallback(
+        query=question,
+        top_k=10,
+        filter_codes=filter_codes if filter_codes else None,
+        use_local_rerank=True  # BM25 로컬 리랭크 활성화
+    )
     
     # 제외할 문서 필터링 (사용자가 노이즈로 지정한 문서 제거)
     if excluded_sources and retrieved_docs:

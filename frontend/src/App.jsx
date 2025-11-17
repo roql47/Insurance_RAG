@@ -59,8 +59,6 @@ function App() {
       ]).flat()
 
       const result = await queryInsuranceCriteria(
-        lastQuery.materialCode || null,
-        lastQuery.procedureCode || null,
         lastQuery.question,
         apiConversationHistory.length > 0 ? apiConversationHistory : null,
         excludedSources
