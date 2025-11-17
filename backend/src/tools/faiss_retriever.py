@@ -74,10 +74,8 @@ class FAISSRetriever:
             검색 결과 리스트 (각 결과는 text, metadata, score 포함)
         """
         if self.index is None or self.metadata is None:
-            return {
-                "error": "FAISS 인덱스가 로드되지 않았습니다. 데이터 전처리를 먼저 실행해주세요.",
-                "results": []
-            }
+            print("⚠️  FAISS 인덱스가 로드되지 않았습니다. 빈 결과를 반환합니다.")
+            return []  # 빈 리스트 반환 (딕셔너리 대신)
         
         try:
             # 1. 질문을 임베딩으로 변환
@@ -120,11 +118,8 @@ class FAISSRetriever:
             return results
             
         except Exception as e:
-            print(f"검색 중 오류 발생: {str(e)}")
-            return {
-                "error": str(e),
-                "results": []
-            }
+            print(f"❌ 검색 중 오류 발생: {str(e)}")
+            return []  # 빈 리스트 반환 (딕셔너리 대신)
     
     def search_by_codes(
         self,
