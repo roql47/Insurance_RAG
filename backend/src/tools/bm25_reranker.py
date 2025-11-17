@@ -105,7 +105,8 @@ class BM25Reranker:
                 doc['rank'] = i
             
             print(f"[BM25 Rerank] ✅ {len(documents)}개 → {min(top_k, len(scored_docs))}개 선별 완료")
-            print(f"    상위 3개 점수: {[f'{d['rerank_score']:.2f}' for d in scored_docs[:3]]}")
+            top_scores = [f"{d['rerank_score']:.2f}" for d in scored_docs[:3]]
+            print(f"    상위 3개 점수: {top_scores}")
             
             return scored_docs[:top_k]
             
