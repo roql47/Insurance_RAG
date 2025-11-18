@@ -60,33 +60,36 @@ const QueryForm = ({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      {/* 질문 입력 (필수) */}
-      <div>
-        <label htmlFor="question" className="block text-sm font-medium text-gray-700 mb-1.5">
-          질문 <span className="text-red-500">*</span>
-        </label>
+    <form onSubmit={handleSubmit} className="flex items-end gap-2">
+      {/* 질문 입력 */}
+      <div className="flex-1">
         <textarea
           id="question"
           name="question"
           value={formData.question}
           onChange={handleChange}
-          placeholder="예: 좌측 혈관에만 수가신청을 한경우 수가 신청을 어떻게 해야해"
-          rows="3"
-          className="w-full px-4 py-2.5 border border-gray-300 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors outline-none resize-none"
+          placeholder="메시지를 입력하세요..."
+          rows="1"
+          className="w-full px-3 py-2 text-sm border border-stone-300 rounded-lg focus:border-stone-500 focus:ring-2 focus:ring-stone-200 transition-all outline-none resize-none bg-white"
           required
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              handleSubmit(e)
+            }
+          }}
         />
-        <p className="mt-1 text-xs text-gray-500">
-          학습된 문서를 기반으로 답변합니다.
-        </p>
       </div>
 
-      {/* 제출 버튼 */}
+      {/* 전송 버튼 */}
       <button
         type="submit"
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-md shadow-sm hover:shadow transition-all duration-150"
+        className="flex-shrink-0 bg-stone-700 hover:bg-stone-800 text-white p-2 rounded-lg transition-colors shadow-sm"
+        aria-label="전송"
       >
-        질문하기
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+        </svg>
       </button>
     </form>
   )

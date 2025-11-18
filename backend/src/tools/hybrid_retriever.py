@@ -463,7 +463,7 @@ class HybridRetriever:
             all_results = local_reranker.rerank(query, all_results, top_k=top_k * 2)
         
         # 7. 최종 결과 반환
-        return all_results[:top_k * 2]  # top_k의 2배 반환 (충분한 컨텍스트)
+        return all_results[:top_k]  # top_k 개수만큼 반환
 
 
 # 테스트용 메인 함수
