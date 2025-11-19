@@ -12,12 +12,16 @@ const ConversationHistory = ({
     return null
   }
 
-  const isLastConversation = (index) => index === conversations.length - 1
+  // 최신 대화가 위에 표시되도록 역순으로 정렬
+  const reversedConversations = [...conversations].reverse()
+  
+  // 역순이므로 최신 대화는 index 0
+  const isLastConversation = (index) => index === 0
 
   return (
     <div className="space-y-8">
       {/* 대화 목록 */}
-      {conversations.map((conversation, index) => (
+      {reversedConversations.map((conversation, index) => (
         <div key={index} className="space-y-6">
           {/* 사용자 메시지 (오른쪽) */}
           <div className="flex justify-end gap-3">
